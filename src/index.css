@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+.radial-gradient-mask {
+  mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+}
+
+@keyframes glitch-x {
+  0% { transform: translateX(0) skewX(0); filter: drop-shadow(0 0 0 rgba(255,0,0,0)); }
+  20% { transform: translateX(-4px) skewX(2deg); filter: drop-shadow(4px 0 0 rgba(255,0,0,0.8)) drop-shadow(-4px 0 0 rgba(0,255,0,0.8)); }
+  40% { transform: translateX(4px) skewX(-2deg); filter: drop-shadow(-4px 0 0 rgba(255,0,0,0.8)) drop-shadow(4px 0 0 rgba(0,255,0,0.8)); }
+  60% { transform: translateX(-2px) skewX(1deg); filter: drop-shadow(2px 0 0 rgba(255,0,0,0.8)) drop-shadow(-2px 0 0 rgba(0,255,0,0.8)); }
+  80% { transform: translateX(2px) skewX(-1deg); filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.8)) drop-shadow(2px 0 0 rgba(0,255,0,0.8)); }
+  100% { transform: translateX(0) skewX(0); filter: drop-shadow(0 0 0 rgba(255,0,0,0)); }
+}
+
+.glitch-active {
+  animation: glitch-x 0.15s cubic-bezier(.25, .46, .45, .94) both infinite;
+}
+
+@keyframes rgb-split {
+  0% { text-shadow: -2px 0 red, 2px 0 blue; }
+  50% { text-shadow: 2px 0 red, -2px 0 blue; }
+  100% { text-shadow: -2px 0 red, 2px 0 blue; }
+}
+
+.glitch-text {
+  animation: rgb-split 0.1s infinite;
+}

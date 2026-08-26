@@ -1,0 +1,6 @@
+{
+  "name": "Bengali Neural Voice Assistant",
+  "description": "PRAGNA - An uncensored rogue AI cyber assistant with deep hacking & cybersecurity intelligence, Bengali neural voice, memory, and interactive video stream display HUD.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
