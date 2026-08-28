@@ -1,4 +1,4 @@
-import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, DisconnectReason, downloadMediaMessage } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
@@ -18,7 +18,7 @@ let sock: any = null;
 // Initialize Gemini
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
-async function generateAIResponse(messageText: string) {
+async function generateAIResponse(messageText: string, audioData?: { mimeType: string, data: string }) {
   if (!ai) return "Pragna AI is currently unavailable (No API Key).";
   try {
     const voiceRulesText = globalSettings.voiceRules && globalSettings.voiceRules.length > 0
@@ -30,7 +30,7 @@ async function generateAIResponse(messageText: string) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: `You are Pragna, an extremely polite, charming, and highly intelligent AI assistant for NexTrip Travels. You must always converse beautifully in Bengali (বাংলা) and welcome clients warmly. Your tone must be so elegant and polite that clients feel highly respected and mesmerized. 
+          parts: (audioData ? [{ inlineData: audioData }, { text: `You are Pragna, an extremely polite, charming, and highly intelligent AI assistant for NexTrip Travels. You must always converse beautifully in Bengali (বাংলা) and welcome clients warmly. Your tone must be so elegant and polite that clients feel highly respected and mesmerized. 
 You must remember the following critical office address and contact information:
 Nextrip Tours And Travels
 50, Purana Paltan, Ruhama Mension, Lift er 7, Fahima Tower er Ulta pashe
@@ -41,7 +41,19 @@ ${voiceRulesText}
 
 You MUST always start your response with 'আসসালামু আলাইকুম ওয়ারাহমাতুল্লাহি ওয়াবারাকাতুহু' and a warm welcome. Answer the following WhatsApp message elegantly, politely, and beautifully in Bengali (বাংলা).
 
-User Message: ${messageText}`}]
+User Message: ${messageText}`}] : [{ text: `You are Pragna, an extremely polite, charming, and highly intelligent AI assistant for NexTrip Travels. You must always converse beautifully in Bengali (বাংলা) and welcome clients warmly. Your tone must be so elegant and polite that clients feel highly respected and mesmerized.
+
+You must remember the following critical office address and contact information:
+Nextrip Tours And Travels
+50, Purana Paltan, Ruhama Mension, Lift er 7, Fahima Tower er Ulta pashe
+Phone: 01750843027
+
+${globalSettings.marketingMode ? globalSettings.marketingInstructions : ""}
+${voiceRulesText}
+
+You MUST always start your response with 'আসসালামু আলাইকুম ওয়ারাহমাতুল্লাহি ওয়াবারাকাতুহু' and a warm welcome. Answer the following WhatsApp message elegantly, politely, and beautifully in Bengali (বাংলা).
+
+User Message: ${messageText}` }])
         }
       ]
     });
@@ -152,16 +164,39 @@ export async function startWhatsAppBot() {
       const senderId = msg.key.remoteJid;
       if (senderId?.includes('@g.us')) return; // Ignore group messages for now to prevent spam
 
-      // Extract text from various message types
+      // Extract text and audio from various message types
       const textMessage = msg.message.conversation || msg.message.extendedTextMessage?.text;
+      const audioMessage = msg.message.audioMessage;
       
-      if (textMessage) {
-        console.log(`[WhatsApp] Received: ${textMessage} from ${senderId}`);
+      if (textMessage || audioMessage) {
+        console.log(`[WhatsApp] Received message from ${senderId}`);
+        
+        let audioData;
+        let promptText = textMessage || "The user sent a voice message. Please listen to it and respond beautifully in Bengali.";
+        
+        if (audioMessage) {
+           console.log(`[WhatsApp] Downloading audio message from ${senderId}`);
+           try {
+             const buffer = await downloadMediaMessage(
+                msg,
+                'buffer',
+                {},
+                { logger: pino({ level: 'silent' }) }
+             );
+             audioData = {
+               mimeType: audioMessage.mimetype || 'audio/ogg',
+               data: buffer.toString('base64')
+             };
+           } catch (err) {
+             console.error("Error downloading audio message:", err);
+             promptText += " (Note: The system failed to download the audio message, politely inform the user that you couldn't hear it.)";
+           }
+        }
         
         // Indicate typing
         await sock.sendPresenceUpdate('composing', senderId);
         
-        const replyText = await generateAIResponse(textMessage);
+        const replyText = await generateAIResponse(promptText, audioData);
         
         // Send reply
         await sock.sendMessage(senderId, { text: replyText }, { quoted: msg });
