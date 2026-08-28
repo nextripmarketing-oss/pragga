@@ -153,9 +153,13 @@ async function generateAIAudio(text: string): Promise<Buffer | null> {
     
     fs.appendFileSync('wa_audio_log.txt', "Successfully generated audio of size: " + oggBuffer.length + "\n");
     return oggBuffer;
-  } catch (error) {
-    fs.appendFileSync('wa_audio_log.txt', "Audio generation error: " + (error as any).message + "\n");
-    console.error("AI Audio Error:", error);
+  } catch (error: any) {
+    fs.appendFileSync('wa_audio_log.txt', "Audio generation error: " + error?.message + "\n");
+    if (error?.message?.includes('429') || error?.status === 429 || error?.message?.includes('Quota exceeded')) {
+      console.warn("\n[WhatsApp] ⚠️ Gemini TTS Free Tier Limit Reached (10 requests/minute). Falling back to text message.\n");
+    } else {
+      console.error("AI Audio Error:", error);
+    }
     return null;
   }
 }
