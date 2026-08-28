@@ -102,9 +102,12 @@ async function generateAIResponse(messageText: string, audioData?: { mimeType: s
       ]
     });
     return response.text || "I'm sorry, I couldn't process that.";
-  } catch (error: any) {
+    } catch (error: any) {
     console.error("AI Error:", error);
-    return "System Error: Unable to reach neural network.";
+    if (error?.message?.includes('429') || error?.status === 429 || error?.message?.includes('Quota')) {
+      return "আসসালামু আলাইকুম। দুঃখিত, এই মুহূর্তে আমাদের সার্ভারে অনেক বেশি চাপ রয়েছে। অনুগ্রহ করে একটু পর আবার মেসেজ দিন।";
+    }
+    return "দুঃখিত, একটি কারিগরি ত্রুটি হয়েছে। দয়া করে কিছুক্ষণ পর আবার মেসেজ করুন।";
   }
 }
 
@@ -112,54 +115,65 @@ async function generateAIResponse(messageText: string, audioData?: { mimeType: s
 
 
 async function generateAIAudio(text: string): Promise<Buffer | null> {
-  if (!ai) {
-    fs.appendFileSync('wa_audio_log.txt', "No AI instance\n");
-    return null;
-  }
   try {
     fs.appendFileSync('wa_audio_log.txt', "Generating audio for: " + text.substring(0, 50) + "\n");
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-tts-preview",
-      contents: [{ parts: [{ text }] }],
-      config: {
-        responseModalities: ["AUDIO"] as any,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Aoede' },
-          },
-        },
-      },
-    });
     
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) {
-      fs.appendFileSync('wa_audio_log.txt', "No base64Audio returned\n");
+    // Clean text to avoid breaking the TTS engine
+    const cleanText = text.replace(/[*#_]/g, '');
+
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsApiKey) {
+      console.warn("[WhatsApp] ELEVENLABS_API_KEY not found. TTS is disabled.");
+      fs.appendFileSync('wa_audio_log.txt', "ELEVENLABS_API_KEY missing\n");
       return null;
     }
 
+    const voiceId = 'EXAVITQu4vr4xnSDxMaL'; // Sarah voice (good multilingual)
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': elevenLabsApiKey
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      fs.appendFileSync('wa_audio_log.txt', "ElevenLabs API Error: " + errText + "\n");
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     const tmpId = Math.random().toString(36).substring(7);
-    const pcmPath = path.join('/tmp', `audio-${tmpId}.pcm`);
+    const mp3Path = path.join('/tmp', `audio-${tmpId}.mp3`);
     const oggPath = path.join('/tmp', `audio-${tmpId}.ogg`);
 
-    fs.writeFileSync(pcmPath, Buffer.from(base64Audio, 'base64'));
+    fs.writeFileSync(mp3Path, buffer);
 
-    await execAsync(`ffmpeg -f s16le -ar 24000 -ac 1 -i ${pcmPath} -c:a libopus -y ${oggPath}`);
-    
+    // Convert MP3 to Opus OGG for WhatsApp Voice Notes
+    await execAsync(`ffmpeg -i ${mp3Path} -c:a libopus -y ${oggPath}`);
     const oggBuffer = fs.readFileSync(oggPath);
     
     // Cleanup
-    fs.unlinkSync(pcmPath);
+    fs.unlinkSync(mp3Path);
     fs.unlinkSync(oggPath);
     
     fs.appendFileSync('wa_audio_log.txt', "Successfully generated audio of size: " + oggBuffer.length + "\n");
     return oggBuffer;
   } catch (error: any) {
     fs.appendFileSync('wa_audio_log.txt', "Audio generation error: " + error?.message + "\n");
-    if (error?.message?.includes('429') || error?.status === 429 || error?.message?.includes('Quota exceeded')) {
-      console.warn("\n[WhatsApp] ⚠️ Gemini TTS Free Tier Limit Reached (10 requests/minute). Falling back to text message.\n");
-    } else {
-      console.error("AI Audio Error:", error);
-    }
+    console.error("AI Audio Error:", error);
     return null;
   }
 }

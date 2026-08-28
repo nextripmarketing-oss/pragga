@@ -97,7 +97,9 @@ export const VideoModal: React.FC<VideoModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: target }),
       });
-      const data = await res.json();
+      const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
       if (Array.isArray(data.result) && data.result.length > 0) {
         setSearchResults(data.result);
         setCurrentIndex(0);

@@ -41,7 +41,9 @@ export const CodeTerminal: React.FC<CodeTerminalProps> = ({ isOpen, code: extern
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code })
       });
-      const data = await res.json();
+      const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
       
       if (res.ok) {
         handleSetOutput(data.result || 'Executed successfully with no stdout.');

@@ -21,7 +21,11 @@ export const VoiceTrainingModal: React.FC<VoiceTrainingModalProps> = ({ isOpen, 
   useEffect(() => {
     if (isOpen) {
       fetch('/api/settings/voice-rules')
-        .then(res => res.json())
+        .then(async res => {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          const text = await res.text();
+          try { return JSON.parse(text); } catch(e) { return {}; }
+        })
         .then(data => setRules(data.rules || []))
         .catch(console.error);
       setSaveStatus('idle');

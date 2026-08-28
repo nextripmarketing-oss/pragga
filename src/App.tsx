@@ -69,7 +69,11 @@ export default function App() {
   
   useEffect(() => {
     fetch('/api/settings/marketing-mode')
-      .then(res => res.json())
+      .then(async res => {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          const text = await res.text();
+          try { return JSON.parse(text); } catch(e) { return {}; }
+        })
       .then(data => setMarketingMode(data.enabled))
       .catch(console.error);
   }, []);
@@ -242,7 +246,9 @@ export default function App() {
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ number: call.args.target_user, text: call.args.text })
                     });
-                    const data = await res.json();
+                    const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
                     responses.push({
                       id: call.id,
                       name: call.name,
@@ -297,7 +303,9 @@ export default function App() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query: call.args.query })
                   });
-                  const data = await res.json();
+                  const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
                   const resultText = data.result || data.error || "No response";
                   responses.push({
                     id: call.id,
@@ -323,7 +331,9 @@ export default function App() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code: call.args.code })
                   });
-                  const data = await res.json();
+                  const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
                   const resultText = data.result || data.error || "No response";
                   
                   // Display output in history for the user
@@ -382,7 +392,9 @@ export default function App() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: call.args.prompt })
                   });
-                  const data = await res.json();
+                  const textData = await res.text();
+      let data = {};
+      try { data = JSON.parse(textData); } catch(e) { console.error("JSON parse error", e); }
                   const resultText = data.result || data.error || "Unknown response from Grok.";
                   
                   // Explicitly add Grok's data to the visible UI history

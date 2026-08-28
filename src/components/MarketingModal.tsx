@@ -15,7 +15,11 @@ export const MarketingModal: React.FC<MarketingModalProps> = ({ isOpen, onClose 
   useEffect(() => {
     if (isOpen) {
       fetch('/api/settings/marketing-instructions')
-        .then(res => res.json())
+        .then(async res => {
+          if (!res.ok) throw new Error("HTTP error " + res.status);
+          const text = await res.text();
+          try { return JSON.parse(text); } catch(e) { return {}; }
+        })
         .then(data => setInstructions(data.instructions || ''))
         .catch(console.error);
       setSaveStatus('idle');
