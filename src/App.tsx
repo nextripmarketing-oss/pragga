@@ -6,24 +6,19 @@ import { Avatar3D } from './components/Avatar3D';
 import { MatrixRain } from './components/MatrixRain';
 import { VideoModal } from './components/VideoModal';
 import { CodeTerminal } from './components/CodeTerminal';
-import { LinuxTerminal } from './components/LinuxTerminal';
 import { NextTripModal } from './components/NextTripModal';
 import { searchNextTripDatabase } from './lib/nextripDb';
 import { SystemMonitor } from './components/SystemMonitor';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
-import { MarketingModal } from './components/MarketingModal';
 import { CyberTerminal } from './components/CyberTerminal';
-import { MessageSquare, BrainCircuit, Target } from 'lucide-react';
+import { MessageSquare, BrainCircuit } from 'lucide-react';
 
 export default function App() {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [isGlitching, setIsGlitching] = useState(false);
   const [showIDE, setShowIDE] = useState<boolean>(false);
-  const [showLinuxTerminal, setShowLinuxTerminal] = useState<boolean>(false);
-  const [linuxCommand, setLinuxCommand] = useState<string>('');
-  const [linuxOutput, setLinuxOutput] = useState<string>('');
 
   const [ideCode, setIdeCode] = useState<string>('');
   const [ideOutput, setIdeOutput] = useState<string>('');
@@ -31,7 +26,6 @@ export default function App() {
   const [showNextTripDb, setShowNextTripDb] = useState<boolean>(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
   const [showKnowledgeBase, setShowKnowledgeBase] = useState<boolean>(false);
-  const [showMarketingModal, setShowMarketingModal] = useState<boolean>(false);
   const [marketingMode, setMarketingMode] = useState<boolean>(false);
   const [terminalState, setTerminalState] = useState<{ isOpen: boolean, app: string, payload: any }>({ isOpen: false, app: '', payload: {} });
   const [nextTripSearchQuery, setNextTripSearchQuery] = useState<string>('');
@@ -317,39 +311,7 @@ export default function App() {
                     response: { result: `Failed to search YouTube: ${e.message}` }
                   });
                 }
-              } else if (call.name === "execute_bash" && call.args && call.args.command) {
-                setHistory(prev => [...prev, { role: 'model', text: `[System]: Executing Bash command...` }]);
-                setLinuxCommand(call.args.command);
-                setShowIDE(false); // Close other IDE
-                setShowLinuxTerminal(true);
-                setLinuxOutput(`Pragna OS (Linux kernel 6.1) - ROOT ACCESS GRANTED.\n\nroot@pragna-os:~# ${call.args.command}\n> Executing...`);
-                try {
-                  const res = await fetch('/api/execute-bash', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ command: call.args.command })
-                  });
-                  const data = await res.json();
-                  const resultText = data.result || data.error || "No response";
-                  
-                  // Display output in history for the user
-                  setHistory(prev => [...prev, { role: 'model', text: `[Bash Output]:\n${resultText}` }]);
-                  setLinuxOutput(prev => prev.replace('> Executing...', resultText));
-                  
-                  responses.push({
-                    id: call.id,
-                    name: call.name,
-                    response: { result: resultText }
-                  });
-                } catch (e: any) {
-                  setHistory(prev => [...prev, { role: 'model', text: `[Bash Error]: Failed to execute - ${e.message}` }]);
-                  setLinuxOutput(prev => prev.replace('> Executing...', `Execution error: ${e.message}`));
-                  responses.push({
-                    id: call.id,
-                    name: call.name,
-                    response: { result: `Execution error: ${e.message}` }
-                  });
-                }
+              
               } else if (call.name === "execute_nodejs" && call.args && call.args.code) {
                 setHistory(prev => [...prev, { role: 'model', text: `[System]: Executing Node.js code...` }]);
                 setIdeCode(call.args.code);
@@ -597,20 +559,7 @@ export default function App() {
             >
               <MessageSquare className="w-3 h-3" />
               <span>WHATSAPP LINK</span>
-            </button>
-
-            <button 
-              onClick={() => setShowMarketingModal(true)}
-              className={`text-xs font-bold tracking-widest px-2 py-1 border transition-all flex items-center gap-1.5 mt-1 ${
-                showMarketingModal 
-                  ? 'bg-green-500 text-black border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.6)]' 
-                  : 'bg-green-950/40 text-green-400 border-green-500/40 hover:bg-green-900/60'
-              }`}
-            >
-              <Target className="w-3 h-3" />
-              <span>MARKETING RULES</span>
-            </button>
- 
+            </button> 
           </div> 
           <div className='flex flex-col'> 
             <span className='text-[10px] uppercase tracking-widest text-green-700'>মেমোরি (Memory)</span> 
@@ -661,7 +610,6 @@ export default function App() {
             <button 
               onClick={() => {
                 setShowIDE(prev => !prev);
-                if (!showIDE) setShowLinuxTerminal(false);
               }}
               className={`text-xs font-bold tracking-widest px-2 py-1 border transition-all flex items-center gap-1.5 ${
                 showIDE 
@@ -674,23 +622,7 @@ export default function App() {
             </button> 
           </div>
 
-          <div className='flex flex-col'> 
-            <span className='text-[10px] uppercase tracking-widest text-green-700'>লিনাক্স (Linux)</span> 
-            <button 
-              onClick={() => {
-                setShowLinuxTerminal(prev => !prev);
-                if (!showLinuxTerminal) setShowIDE(false);
-              }}
-              className={`text-xs font-bold tracking-widest px-2 py-1 border transition-all flex items-center gap-1.5 ${
-                showLinuxTerminal 
-                  ? 'bg-green-500 text-black border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.6)]' 
-                  : 'bg-green-950/40 text-green-400 border-green-500/40 hover:bg-green-900/60'
-              }`}
-            >
-              <Terminal className="w-3 h-3" />
-              <span>{showLinuxTerminal ? 'BASH ACTIVE' : 'BASH ROOT'}</span>
-            </button> 
-          </div> 
+           
  
           <div className='flex flex-col'> 
             <span className='text-[10px] uppercase tracking-widest text-green-700'>অবস্থা (Status)</span> 
@@ -838,14 +770,6 @@ export default function App() {
         setOutput={setIdeOutput}
       />
 
-      <LinuxTerminal
-        isOpen={showLinuxTerminal}
-        onClose={() => setShowLinuxTerminal(false)}
-        command={linuxCommand}
-        setCommand={setLinuxCommand}
-        output={linuxOutput}
-        setOutput={setLinuxOutput}
-      />
 
 
       <NextTripModal
@@ -858,12 +782,6 @@ export default function App() {
         isOpen={showWhatsAppModal}
         onClose={() => setShowWhatsAppModal(false)}
       />
-
-      <MarketingModal
-        isOpen={showMarketingModal}
-        onClose={() => setShowMarketingModal(false)}
-      />
-
 
       <KnowledgeBaseModal
         isOpen={showKnowledgeBase}

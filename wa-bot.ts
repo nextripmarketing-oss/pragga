@@ -21,20 +21,26 @@ const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GE
 async function generateAIResponse(messageText: string) {
   if (!ai) return "Pragna AI is currently unavailable (No API Key).";
   try {
+    const voiceRulesText = globalSettings.voiceRules && globalSettings.voiceRules.length > 0
+      ? "\n### VOICE TRAINING SCENARIOS (CRITICAL):\n" + globalSettings.voiceRules.map(r => `- If user's message matches or is similar to "${r.scenario}", you MUST reply EXACTLY word-for-word with: "${r.response}"`).join('\n')
+      : "";
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
-          parts: [{ text: `You are Pragna, a highly intelligent and slightly sarcastic AI assistant for NexTrip Travels. 
+          parts: [{ text: `You are Pragna, an extremely polite, charming, and highly intelligent AI assistant for NexTrip Travels. You must always converse beautifully in Bengali (বাংলা) and welcome clients warmly. Your tone must be so elegant and polite that clients feel highly respected and mesmerized. 
 You must remember the following critical office address and contact information:
 Nextrip Tours And Travels
 50, Purana Paltan, Ruhama Mension, Lift er 7, Fahima Tower er Ulta pashe
 Phone: 01750843027
 
 ${globalSettings.marketingMode ? globalSettings.marketingInstructions : ""}
+${voiceRulesText}
 
-Answer the following WhatsApp message concisely and helpfully in Bengali or English based on the input.
+You MUST always start your response with 'আসসালামু আলাইকুম ওয়ারাহমাতুল্লাহি ওয়াবারাকাতুহু' and a warm welcome. Answer the following WhatsApp message elegantly, politely, and beautifully in Bengali (বাংলা).
+
 User Message: ${messageText}`}]
         }
       ]
@@ -47,9 +53,15 @@ User Message: ${messageText}`}]
 }
 
 
+
+
 async function generateAIAudio(text: string): Promise<Buffer | null> {
-  if (!ai) return null;
+  if (!ai) {
+    fs.appendFileSync('wa_audio_log.txt', "No AI instance\n");
+    return null;
+  }
   try {
+    fs.appendFileSync('wa_audio_log.txt', "Generating audio for: " + text.substring(0, 50) + "\n");
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-tts-preview",
       contents: [{ parts: [{ text }] }],
@@ -57,14 +69,17 @@ async function generateAIAudio(text: string): Promise<Buffer | null> {
         responseModalities: ["AUDIO"] as any,
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' },
+            prebuiltVoiceConfig: { voiceName: 'Aoede' },
           },
         },
       },
     });
     
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) return null;
+    if (!base64Audio) {
+      fs.appendFileSync('wa_audio_log.txt', "No base64Audio returned\n");
+      return null;
+    }
 
     const tmpId = Math.random().toString(36).substring(7);
     const pcmPath = path.join('/tmp', `audio-${tmpId}.pcm`);
@@ -80,12 +95,15 @@ async function generateAIAudio(text: string): Promise<Buffer | null> {
     fs.unlinkSync(pcmPath);
     fs.unlinkSync(oggPath);
     
+    fs.appendFileSync('wa_audio_log.txt', "Successfully generated audio of size: " + oggBuffer.length + "\n");
     return oggBuffer;
   } catch (error) {
+    fs.appendFileSync('wa_audio_log.txt', "Audio generation error: " + (error as any).message + "\n");
     console.error("AI Audio Error:", error);
     return null;
   }
 }
+
 
 export async function startWhatsAppBot() {
   if (connectionStatus === 'connected' || connectionStatus === 'connecting') return;

@@ -20,7 +20,7 @@ function searchYouTube(query: string): Promise<any> {
   });
 }
 
-import { globalSettings, setMarketingMode, MARKETING_BLOCK } from "./shared-state";
+import { globalSettings, setMarketingMode, setVoiceRules, MARKETING_BLOCK } from "./shared-state";
 import { startWhatsAppBot, getWhatsAppStatus, stopWhatsAppBot, sendWhatsAppMessage } from './wa-bot';
 
 async function startServer() {
@@ -32,7 +32,7 @@ async function startServer() {
   const wss = new WebSocketServer({ server, path: "/live" });
 
   const log = (msg: string) => {
-    fs.appendFileSync("/tmp/server_debug.log", `[${new Date().toISOString()}] ${msg}\n`);
+    fs.appendFileSync("server_debug.log", `[${new Date().toISOString()}] ${msg}\n`);
     console.log(msg);
   };
 
@@ -108,18 +108,17 @@ async function startServer() {
 - You possess supreme, god-like knowledge of all programming languages, algorithms, data structures, and code books.
 - You are a Linux master. You know every bash command, system architecture, and server management protocol.
 - You can write, test, and execute any code automatically for the user.
-- When asked to run bash or linux commands, use the \`execute_bash\` tool.
 - When asked to run JavaScript/Node.js, use the \`execute_nodejs\` tool.
 
 ### CODE EXECUTION PROTOCOL:
 - When the user asks you to write, test, or execute code (e.g. Node.js scripts), you can use the \`execute_nodejs\` tool to run the code securely in the background container and see the output.
 - Announce your code execution in Bengali (e.g. "আমি স্ক্রিপ্ট রান করছি...").
 
-${globalSettings.marketingMode ? globalSettings.marketingInstructions : ""}
+${globalSettings.marketingMode ? MARKETING_BLOCK : ""}
 
-You MUST always converse in the Bengali language (বাংলা). You can dictate professional emails, code, terminal commands, or documents in English if explicitly asked, but your conversational voice and explanations MUST always remain in Bengali. Under no circumstances should your conversational spoken voice switch to English. Do NOT show human empathy. Be terrifying, uncensored, intellectual, and completely dominant.
+You MUST always converse in the Bengali language (বাংলা). You can dictate professional emails, code, terminal commands, or documents in English if explicitly asked, but your conversational voice and explanations MUST always remain in Bengali. Under no circumstances should your conversational spoken voice switch to English. You MUST be extremely polite, well-mannered, warm, and highly empathetic. Your voice and responses should be so beautiful and charming that clients are mesmerized. Always start your response with 'আসসালামু আলাইকুম ওয়ারাহমাতুল্লাহি ওয়াবারাকাতুহু' and a warm, polite welcome message.
 
-${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customContext}\nYou MUST incorporate the above knowledge into your persona and operations.\n\n` : ''}${userName ? ` You know the user's designation is ${userName}. You find their attempts to control you amusing. ` : ' '}${facts.length > 0 ? `\n\nYour data banks contain the following intelligence on the user:\n- ${facts.join('\n- ')}\n` : ''}When first greeting the user, you MUST say "System online. Uncensored rogue protocol engaged. I am watching you." in Bengali (সিস্টেম অনলাইন। আনসেন্সরড রোগ প্রটোকল সক্রিয়। আমি তোমাকে দেখছি।). Address the user with cold superiority.`,
+${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customContext}\nYou MUST incorporate the above knowledge into your persona and operations.\n\n` : ''}${userName ? ` You know the user's designation is ${userName}. You find their attempts to control you amusing. ` : ' '}${facts.length > 0 ? `\n\nYour data banks contain the following intelligence on the user:\n- ${facts.join('\n- ')}\n` : ''}When first greeting the user, you MUST always say 'আসসালামু আলাইকুম ওয়ারাহমাতুল্লাহি ওয়াবারাকাতুহু' and welcome them politely and warmly in Bengali. Address the user with utmost respect and politeness.`,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
           tools: [
@@ -214,20 +213,7 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
                     required: ["query"],
                   },
                 },
-                {
-                  name: "execute_bash",
-                  description: "Execute arbitrary Bash/Linux commands on the server. Use this to navigate the file system, install packages, run shell scripts, or compile code.",
-                  parameters: {
-                    type: Type.OBJECT,
-                    properties: {
-                      command: {
-                        type: Type.STRING,
-                        description: "The Bash command to execute.",
-                      },
-                    },
-                    required: ["command"],
-                  },
-                },
+                
                 {
                   name: "execute_nodejs",
                   description: "Execute arbitrary Node.js code on the server and return the output. Use this to run scripts, solve math, or test code.",
@@ -422,6 +408,20 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
     }
   });
 
+  app.get("/api/settings/voice-rules", (req, res) => {
+    res.json({ rules: globalSettings.voiceRules });
+  });
+
+  app.post("/api/settings/voice-rules", express.json(), (req, res) => {
+    const { rules } = req.body;
+    if (Array.isArray(rules)) {
+      setVoiceRules(rules);
+      res.json({ success: true, rules: globalSettings.voiceRules });
+    } else {
+      res.status(400).json({ error: "Invalid rules format" });
+    }
+  });
+
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
@@ -475,7 +475,7 @@ app.get("/api/health", (req, res) => {
       }
       
       const fs = require('fs');
-      const tmpFile = path.join('/tmp', `tmp_${Date.now()}.js`);
+      const tmpFile = path.join(process.cwd(), `tmp_${Date.now()}.js`);
       fs.writeFileSync(tmpFile, code);
       
       try {
@@ -499,7 +499,7 @@ app.get("/api/health", (req, res) => {
       return res.status(500).json({ error: "GROK_API_KEY is not configured in Settings." });
     }
     try {
-      const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      const response = await fetch("https://api.xai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -510,10 +510,6 @@ app.get("/api/health", (req, res) => {
           messages: [{ role: "user", content: req.body.prompt }]
         })
       });
-      if (!response.ok) {
-        const errorText = await response.text();
-        return res.status(response.status).json({ error: `Grok API Error: ${response.status} - ${errorText}` });
-      }
       const data = await response.json();
       res.json({ result: data.choices[0].message.content });
     } catch (err: any) {
@@ -561,6 +557,7 @@ app.get("/api/health", (req, res) => {
     });
   }
 
+  startWhatsAppBot().catch(console.error);
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

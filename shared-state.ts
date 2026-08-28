@@ -37,7 +37,8 @@ MARKETING & SALES STRATEGY (PROACTIVE CONVERSION):
 
 export let globalSettings = {
   marketingMode: false,
-  marketingInstructions: MARKETING_BLOCK
+  marketingInstructions: MARKETING_BLOCK,
+  voiceRules: [] as {id: string, scenario: string, response: string}[]
 };
 
 export function setMarketingMode(enabled: boolean) {
@@ -46,4 +47,9 @@ export function setMarketingMode(enabled: boolean) {
 
 export function setMarketingInstructions(instructions: string) {
   globalSettings.marketingInstructions = instructions;
+}
+
+
+export function setVoiceRules(rules: {id: string, scenario: string, response: string}[]) {
+  globalSettings.voiceRules = rules;
 }
