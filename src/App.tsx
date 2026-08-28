@@ -12,8 +12,9 @@ import { searchNextTripDatabase } from './lib/nextripDb';
 import { SystemMonitor } from './components/SystemMonitor';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
+import { MarketingModal } from './components/MarketingModal';
 import { CyberTerminal } from './components/CyberTerminal';
-import { MessageSquare, BrainCircuit } from 'lucide-react';
+import { MessageSquare, BrainCircuit, Target } from 'lucide-react';
 
 export default function App() {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
@@ -30,6 +31,7 @@ export default function App() {
   const [showNextTripDb, setShowNextTripDb] = useState<boolean>(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState<boolean>(false);
   const [showKnowledgeBase, setShowKnowledgeBase] = useState<boolean>(false);
+  const [showMarketingModal, setShowMarketingModal] = useState<boolean>(false);
   const [marketingMode, setMarketingMode] = useState<boolean>(false);
   const [terminalState, setTerminalState] = useState<{ isOpen: boolean, app: string, payload: any }>({ isOpen: false, app: '', payload: {} });
   const [nextTripSearchQuery, setNextTripSearchQuery] = useState<string>('');
@@ -595,7 +597,20 @@ export default function App() {
             >
               <MessageSquare className="w-3 h-3" />
               <span>WHATSAPP LINK</span>
-            </button> 
+            </button>
+
+            <button 
+              onClick={() => setShowMarketingModal(true)}
+              className={`text-xs font-bold tracking-widest px-2 py-1 border transition-all flex items-center gap-1.5 mt-1 ${
+                showMarketingModal 
+                  ? 'bg-green-500 text-black border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.6)]' 
+                  : 'bg-green-950/40 text-green-400 border-green-500/40 hover:bg-green-900/60'
+              }`}
+            >
+              <Target className="w-3 h-3" />
+              <span>MARKETING RULES</span>
+            </button>
+ 
           </div> 
           <div className='flex flex-col'> 
             <span className='text-[10px] uppercase tracking-widest text-green-700'>মেমোরি (Memory)</span> 
@@ -843,6 +858,12 @@ export default function App() {
         isOpen={showWhatsAppModal}
         onClose={() => setShowWhatsAppModal(false)}
       />
+
+      <MarketingModal
+        isOpen={showMarketingModal}
+        onClose={() => setShowMarketingModal(false)}
+      />
+
 
       <KnowledgeBaseModal
         isOpen={showKnowledgeBase}

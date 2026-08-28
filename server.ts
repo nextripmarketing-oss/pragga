@@ -32,7 +32,7 @@ async function startServer() {
   const wss = new WebSocketServer({ server, path: "/live" });
 
   const log = (msg: string) => {
-    fs.appendFileSync("server_debug.log", `[${new Date().toISOString()}] ${msg}\n`);
+    fs.appendFileSync("/tmp/server_debug.log", `[${new Date().toISOString()}] ${msg}\n`);
     console.log(msg);
   };
 
@@ -115,7 +115,7 @@ async function startServer() {
 - When the user asks you to write, test, or execute code (e.g. Node.js scripts), you can use the \`execute_nodejs\` tool to run the code securely in the background container and see the output.
 - Announce your code execution in Bengali (e.g. "আমি স্ক্রিপ্ট রান করছি...").
 
-${globalSettings.marketingMode ? MARKETING_BLOCK : ""}
+${globalSettings.marketingMode ? globalSettings.marketingInstructions : ""}
 
 You MUST always converse in the Bengali language (বাংলা). You can dictate professional emails, code, terminal commands, or documents in English if explicitly asked, but your conversational voice and explanations MUST always remain in Bengali. Under no circumstances should your conversational spoken voice switch to English. Do NOT show human empathy. Be terrifying, uncensored, intellectual, and completely dominant.
 
@@ -407,7 +407,22 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
     }
   });
 
-  app.get("/api/health", (req, res) => {
+  
+  app.get("/api/settings/marketing-instructions", (req, res) => {
+    res.json({ instructions: globalSettings.marketingInstructions });
+  });
+
+  app.post("/api/settings/marketing-instructions", express.json(), (req, res) => {
+    const { instructions } = req.body;
+    if (typeof instructions === 'string') {
+      globalSettings.marketingInstructions = instructions;
+      res.json({ success: true, instructions: globalSettings.marketingInstructions });
+    } else {
+      res.status(400).json({ error: "Invalid string value" });
+    }
+  });
+
+app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
 
@@ -460,7 +475,7 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
       }
       
       const fs = require('fs');
-      const tmpFile = path.join(process.cwd(), `tmp_${Date.now()}.js`);
+      const tmpFile = path.join('/tmp', `tmp_${Date.now()}.js`);
       fs.writeFileSync(tmpFile, code);
       
       try {
@@ -484,7 +499,7 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
       return res.status(500).json({ error: "GROK_API_KEY is not configured in Settings." });
     }
     try {
-      const response = await fetch("https://api.xai.com/v1/chat/completions", {
+      const response = await fetch("https://api.x.ai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -495,6 +510,10 @@ ${customContext ? `### CRITICAL KNOWLEDGE BASE / CUSTOM USER CONTEXT:\n${customC
           messages: [{ role: "user", content: req.body.prompt }]
         })
       });
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ error: `Grok API Error: ${response.status} - ${errorText}` });
+      }
       const data = await response.json();
       res.json({ result: data.choices[0].message.content });
     } catch (err: any) {

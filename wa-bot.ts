@@ -26,7 +26,7 @@ Nextrip Tours And Travels
 50, Purana Paltan, Ruhama Mension, Lift er 7, Fahima Tower er Ulta pashe
 Phone: 01750843027
 
-${globalSettings.marketingMode ? MARKETING_BLOCK : ""}
+${globalSettings.marketingMode ? globalSettings.marketingInstructions : ""}
 
 Answer the following WhatsApp message concisely and helpfully in Bengali or English based on the input.
 User Message: ${messageText}`}]
@@ -46,7 +46,7 @@ export async function startWhatsAppBot() {
   currentQR = null;
 
   try {
-    const { state, saveCreds } = await useMultiFileAuthState('./wa-auth');
+    const { state, saveCreds } = await useMultiFileAuthState('/tmp/wa-auth');
     
     sock = makeWASocket({
       auth: state,
