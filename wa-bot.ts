@@ -2,6 +2,12 @@ import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeys
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
+import fs from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
 import { GoogleGenAI } from '@google/genai';
 import { globalSettings, MARKETING_BLOCK } from './shared-state';
 
@@ -37,6 +43,47 @@ User Message: ${messageText}`}]
   } catch (error: any) {
     console.error("AI Error:", error);
     return "System Error: Unable to reach neural network.";
+  }
+}
+
+
+async function generateAIAudio(text: string): Promise<Buffer | null> {
+  if (!ai) return null;
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: ["AUDIO"] as any,
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
+        },
+      },
+    });
+    
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) return null;
+
+    const tmpId = Math.random().toString(36).substring(7);
+    const pcmPath = path.join('/tmp', `audio-${tmpId}.pcm`);
+    const oggPath = path.join('/tmp', `audio-${tmpId}.ogg`);
+
+    fs.writeFileSync(pcmPath, Buffer.from(base64Audio, 'base64'));
+
+    await execAsync(`ffmpeg -f s16le -ar 24000 -ac 1 -i ${pcmPath} -c:a libopus -y ${oggPath}`);
+    
+    const oggBuffer = fs.readFileSync(oggPath);
+    
+    // Cleanup
+    fs.unlinkSync(pcmPath);
+    fs.unlinkSync(oggPath);
+    
+    return oggBuffer;
+  } catch (error) {
+    console.error("AI Audio Error:", error);
+    return null;
   }
 }
 
@@ -101,6 +148,15 @@ export async function startWhatsAppBot() {
         // Send reply
         await sock.sendMessage(senderId, { text: replyText }, { quoted: msg });
         await sock.sendPresenceUpdate('paused', senderId);
+
+        // Generate and send audio
+        await sock.sendPresenceUpdate('recording', senderId);
+        const audioBuffer = await generateAIAudio(replyText);
+        if (audioBuffer) {
+           await sock.sendMessage(senderId, { audio: audioBuffer, mimetype: 'audio/ogg; codecs=opus', ptt: true });
+        }
+        await sock.sendPresenceUpdate('paused', senderId);
+
       }
     });
 
